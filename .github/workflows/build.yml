@@ -55,7 +55,7 @@ jobs:
       - name: Build injector.exe
         shell: cmd
         run: |
-          cl.exe /nologo /O2 /EHsc /W0 ^
+          cl.exe /nologo /O2 /EHsc /W0 /std:c++17 ^
             /Fe:dist_cpp\XcXInjector.exe ^
             src\injector.cpp ^
             /link psapi.lib
@@ -63,7 +63,7 @@ jobs:
       - name: Build executor.dll
         shell: cmd
         run: |
-          cl.exe /nologo /O2 /EHsc /W0 /LD ^
+          cl.exe /nologo /O2 /EHsc /W0 /std:c++17 /LD ^
             /Fe:dist_cpp\executor.dll ^
             src\executor_dll.cpp ^
             /link psapi.lib
