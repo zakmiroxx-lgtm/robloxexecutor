@@ -3,7 +3,7 @@ name: Build XcX Executor (v1 - C++)
 on:
   push:
     branches: [main]
- workflow_dispatch:
+ workflow_dispatch
 
 jobs:
   build:
@@ -20,8 +20,14 @@ jobs:
     if ($z) {
     Expand-Archive -Path $z.FullName -DestinationPath "." -Force
     $sub = Get-ChildItem -Directory | Where-Object { Test-Path "$($_.FullName)\main.py" } | Select-Object -First 1
-    if ($sub) { Copy-Item -Recurse -Force "$($sub.FullName)\*" "."; Remove-Item -Recurse -Force $sub.FullName }
-    } else { echo "ERROR: no main.py"; exit 1 }
+    if ($sub) { 
+    Copy-Item -Recurse -Force "$($sub.FullName)\*" "."; 
+    Remove-Item -Recurse -Force $sub.FullName 
+   }
+    } else { 
+    echo "ERROR: no main.py"; 
+    exit 1 
+   }
   }
 
     # ── Шаг 1: Собираем C++ через MSVC ──
@@ -33,8 +39,9 @@ jobs:
     with:
     arch: x64
 
-    # ДОБАВЛЕННЫЙ ШАГ: Создаем папку dist_cpp перед компиляцией
+    # Используем &&. Если Setup MSVC FAILED, этот шаг НЕ запустится.
     - name: Create output directories
+    if: success()
     shell: pwsh
     run: New-Item -ItemType Directory -Force -Path "dist_cpp"
 
@@ -80,4 +87,3 @@ jobs:
     name: XcX-Executor-v1
     path: release\
     retention-days: 30
-    
