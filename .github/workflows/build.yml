@@ -3,75 +3,81 @@ name: Build XcX Executor (v1 - C++)
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+ workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Unzip if needed
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "main.py")) {
-            $z = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
-            if ($z) {
-              Expand-Archive -Path $z.FullName -DestinationPath "." -Force
-              $sub = Get-ChildItem -Directory | Where-Object { Test-Path "$($_.FullName)\main.py" } | Select-Object -First 1
-              if ($sub) { Copy-Item -Recurse -Force "$($sub.FullName)\*" "."; Remove-Item -Recurse -Force $sub.FullName }
-            } else { echo "ERROR: no main.py"; exit 1 }
-          }
+    - name: Unzip if needed
+    shell: pwsh
+   run: |
+    if (-not (Test-Path "main.py")) {
+    $z = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
+    if ($z) {
+    Expand-Archive -Path $z.FullName -DestinationPath "." -Force
+    $sub = Get-ChildItem -Directory | Where-Object { Test-Path "$($_.FullName)\main.py" } | Select-Object -First 1
+    if ($sub) { Copy-Item -Recurse -Force "$($sub.FullName)\*" "."; Remove-Item -Recurse -Force $sub.FullName }
+    } else { echo "ERROR: no main.py"; exit 1 }
+  }
 
-      # ── Шаг 1: Собираем C++ через MSVC ──
-      - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v2
+    # ── Шаг 1: Собираем C++ через MSVC ──
+    - name: Setup MSVC
+    uses: microsoft/setup-msbuild@v2
 
-      - name: Setup MSVC compiler
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+    - name: Setup MSVC compiler
+    uses: ilammy/msvc-dev-cmd@v1
+    with:
+    arch: x64
 
-      - name: Build injector.exe
-        run: |
-          cl.exe /nologo /O2 /EHsc /W0 ^
-            /Fe:dist_cpp\XcXInjector.exe ^
-            src\injector.cpp ^
-            /link psapi.lib
-        shell: cmd
+    # ДОБАВЛЕННЫЙ ШАГ: Создаем папку dist_cpp перед компиляцией
+    - name: Create output directories
+    shell: pwsh
+    run: New-Item -ItemType Directory -Force -Path "dist_cpp"
 
-      - name: Build executor.dll
-        run: |
-          cl.exe /nologo /O2 /EHsc /W0 /LD ^
-            /Fe:dist_cpp\executor.dll ^
-            src\executor_dll.cpp ^
-            /link psapi.lib
-        shell: cmd
+    - name: Build injector.exe
+   run: |
+    cl.exe /nologo /O2 /EHsc /W0 ^
+   /Fe:dist_cpp\XcXInjector.exe ^
+   src\injector.cpp ^
+    /link psapi.lib
+    shell: cmd
 
-      # ── Шаг 2: Собираем Python UI ──
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Build executor.dll
+   run: |
+    cl.exe /nologo /O2 /EHsc /W0 /LD ^
+   /Fe:dist_cpp\executor.dll ^
+   src\executor_dll.cpp ^
+    /link psapi.lib
+    shell: cmd
 
-      - name: Install deps
-        run: pip install pyinstaller pywin32 requests
+    # ── Шаг 2: Собираем Python UI ──
+    - uses: actions/setup-python@v5
+    with:
+    python-version: "3.11"
 
-      - name: Build UI exe
-        run: pyinstaller --onefile --noconsole --name "RbxExecutor" main.py
+    - name: Install deps
+    run: pip install pyinstaller pywin32 requests
 
-      # ── Шаг 3: Складываем всё в одну папку ──
-      - name: Collect output
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "release"
-          Copy-Item "dist\RbxExecutor.exe"       "release\"
-          Copy-Item "dist_cpp\XcXInjector.exe"   "release\"
-          Copy-Item "dist_cpp\executor.dll"       "release\"
+    - name: Build UI exe
+    run: pyinstaller --onefile --noconsole --name "RbxExecutor" main.py
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: XcX-Executor-v1
-          path: release\
-          retention-days: 30
+    # ── Шаг 3: Складываем всё в одну папку ──
+    - name: Collect output
+    shell: pwsh
+   run: |
+    New-Item -ItemType Directory -Force -Path "release"
+    Copy-Item "dist\RbxExecutor.exe"    "release\"
+    Copy-Item "dist_cpp\XcXInjector.exe"   "release\"
+    Copy-Item "dist_cpp\executor.dll"   "release\"
+
+    - name: Upload
+    uses: actions/upload-artifact@v4
+    with:
+    name: XcX-Executor-v1
+    path: release\
+    retention-days: 30
+    
