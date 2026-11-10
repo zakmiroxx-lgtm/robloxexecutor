@@ -1,4 +1,4 @@
-name: Build Executor
+name: Build XcX Executor
 
 on:
   push:
@@ -13,25 +13,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - name: Unzip source if needed
+        shell: pwsh
+        run: |
+          if (Test-Path "main.py") {
+            echo "main.py already in root, skip unzip"
+          } elseif (Test-Path "executor.zip") {
+            echo "Found executor.zip — extracting..."
+            Expand-Archive -Path "executor.zip" -DestinationPath "." -Force
+            if (Test-Path "executor\main.py") {
+              Copy-Item -Recurse -Force "executor\*" "."
+              Remove-Item -Recurse -Force "executor"
+            }
+          } else {
+            $zip = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
+            if ($zip) {
+              Expand-Archive -Path $zip.FullName -DestinationPath "." -Force
+              $sub = Get-ChildItem -Directory | Where-Object { Test-Path "$($_.FullName)\main.py" } | Select-Object -First 1
+              if ($sub) {
+                Copy-Item -Recurse -Force "$($sub.FullName)\*" "."
+                Remove-Item -Recurse -Force $sub.FullName
+              }
+            } else {
+              echo "ERROR: no main.py and no zip found"
+              exit 1
+            }
+          }
+
       - name: Install dependencies
-        run: |
-          pip install pyinstaller requests pywin32 websocket-client
+        run: pip install pyinstaller pywin32 requests
 
-      - name: Build Executor EXE
-        run: |
-          pyinstaller --onefile --noconsole --name "RbxExecutor" src/main.py
+      - name: Build main EXE
+        run: pyinstaller --onefile --noconsole --name "RbxExecutor" main.py
 
-      - name: Build SFX ZIP
-        run: |
-          python build_sfx.py
+      - name: Build SFX
+        run: python build_sfx.py
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RbxExecutor-SFX
+          name: RbxExecutor-Setup
           path: output/RbxExecutor_Setup.exe
+          retention-days: 30
